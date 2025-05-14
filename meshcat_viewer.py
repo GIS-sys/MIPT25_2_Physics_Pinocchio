@@ -77,7 +77,7 @@ viz.loadViewerModel()
 
 
 def sim_loop(viz, model, frame_id: int, start_position: np.ndarray, start_velocity: np.ndarray, dt: float, nsteps: int): # ???
-    tau0 = np.zeros(model.nv)
+    tau0 = np.zeros(model.nv) # only torque, no velocity
     qs = [START_POSITION]
     vs = [START_VELOCITY]
     for i in tqdm(range(nsteps)):
@@ -95,6 +95,7 @@ def sim_loop(viz, model, frame_id: int, start_position: np.ndarray, start_veloci
         vs.append(vnext)
         viz.display(qnext)
         viz.drawFrameVelocities(frame_id=frame_id)
+        # print(q)
     return qs, vs
 
 
