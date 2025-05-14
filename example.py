@@ -3,6 +3,7 @@ import pinocchio as pin
 from pinocchio import Model, JointModelRX, JointModelRY, Inertia, SE3, StdVec_Force, Force, Motion
 from pinocchio.visualize import MeshcatVisualizer
 from scipy.integrate import odeint
+import time
 
 model = Model()
 model.gravity = Motion(np.zeros(3), np.array([0, 0, -9.81]))
@@ -60,7 +61,8 @@ for frame in model.frames:
             frame.parent,
             frame.placement,
             SE3.Identity(),
-            Inertia.FromSphere(1.0, 0.1).toVisual()
+            pin.Inertia.FromSphere(1.0, 0.1).toVisual(),
+            pin.MeshcatSphere(0.1, np.array([1, 0, 0, 1]))
         )
         visual_model.addGeometryObject(visual_geometry)
 
@@ -70,3 +72,6 @@ viz.loadViewerModel()
 
 for q in result[:, :model.nq]:
     viz.display(q)
+    time.sleep(dt)
+
+input("Press Enter to exit...")
