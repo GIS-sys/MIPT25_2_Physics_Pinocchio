@@ -16,6 +16,8 @@ cp -r /tmp/example-robot-data/robots ./models/example-robot-data/
 
 # Useful links
 
+How to install: https://stack-of-tasks.github.io/pinocchio/download.html
+
 Docs: https://gepettoweb.laas.fr/doc/stack-of-tasks/pinocchio/master/doxygen-html/
 
 Viewer example: https://github.com/stack-of-tasks/pinocchio/blob/master/examples/meshcat-viewer.py
