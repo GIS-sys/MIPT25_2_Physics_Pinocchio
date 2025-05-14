@@ -1,6 +1,13 @@
-# Result
+# Results
 
-![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase.mp4)
+1) Example of a ragdoll dog (don't forget to download models as described in Installation section):
+![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase_leap.mp4)
+
+2) Example of a robot constant movement with constrained legs and an arm:
+![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase_squats.mp4)
+
+3) Example of a robot being pulled by a constant force to the left, with a single constrained leg:
+![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase_pull.mp4)
 
 # Installation
 
