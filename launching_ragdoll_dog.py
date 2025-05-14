@@ -55,14 +55,14 @@ model, collision_model, visual_model = pin.buildModelsFromUrdf(
 # Constants
 POSITION_READY = pin.neutral(model)
 POSITION_STAND = np.array([0.0, 0.0, 0.235, 0.0, 0.0, 0.0, 1.0, 0.8, -1.6, 0.8, -1.6, -0.8, 1.6, -0.8, 1.6])
-VELOCITY_RANDOM = np.random.randn(model.nv) ** 2
+VELOCITY_RANDOM = np.random.randn(model.nv) ** 2 * 0.5 + 0.3
 VELOCITY_RANDOM_UP = VELOCITY_RANDOM
 VELOCITY_RANDOM_UP[2] = 4
 
 START_POSITION = POSITION_READY
 START_VELOCITY = VELOCITY_RANDOM
 DTIME = 0.0001
-NSTEPS = 2000
+NSTEPS = 6000
 
 OUT_VIDEO_NAME = "leap.mp4"
 
