@@ -1,3 +1,7 @@
+# Result
+
+![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase.mp4)
+
 # Installation
 
 ## 1. Install dependencies
