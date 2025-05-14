@@ -1,0 +1,6 @@
+**/tmp
+**/tmp.*
+**/*.tmp
+
+models/example-robot-data/*
+!models/example-robot-data/.gitkeep
