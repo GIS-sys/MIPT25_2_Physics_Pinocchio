@@ -76,52 +76,6 @@ viz.initViewer(open=True)
 viz.loadViewerModel()
 
 
-## Create a convex shape from solo main body # ???
-#mesh = visual_model.geometryObjects[0].geometry
-#mesh.buildConvexRepresentation(True)
-#convex = mesh.convex
-## Place the convex object on the scene and display it # ???
-#if convex is not None:
-#    placement = pin.SE3.Identity()
-#    placement.translation[0] = 2.0
-#    geometry = pin.GeometryObject("convex", 0, placement, convex)
-#    geometry.meshColor = np.ones(4)
-#    # Add a PhongMaterial to the convex object
-#    geometry.overrideMaterial = True
-#    geometry.meshMaterial = pin.GeometryPhongMaterial()
-#    geometry.meshMaterial.meshEmissionColor = np.array([1.0, 0.1, 0.1, 1.0])
-#    geometry.meshMaterial.meshSpecularColor = np.array([0.1, 1.0, 0.1, 1.0])
-#    geometry.meshMaterial.meshShininess = 0.8
-#    visual_model.addGeometryObject(geometry)
-#    # After modifying the visual_model we must rebuild
-#    # associated data inside the visualizer
-#    viz.rebuildData()
-#
-## Display another robot # ???
-#viz2 = MeshcatVisualizer(model, collision_model, visual_model)
-#viz2.initViewer(viz.viewer)
-#viz2.loadViewerModel()
-#q = q0.copy()
-#q = np.array(
-#    [0.0, 0.0, 0.235, 0.0, 0.0, 0.0, 1.0, 0.8, -1.6, 0.8, -1.6, -0.8, 1.6, -0.8, 1.6]
-#)
-#viz2.display(q0)
-#
-## standing config # ???
-#q1 = POSITION_READY
-#
-#v0 = np.random.randn(model.nv) ** 2
-#v0[2] = 3
-#data = viz.data
-#pin.forwardKinematics(model, data, q1, v0)
-#frame_id = model.getFrameId("HR_FOOT")
-#viz.display()
-#viz.drawFrameVelocities(frame_id=frame_id)
-#
-#model.gravity.linear[:] = [0.0, 0.0, -9.81]
-#dt = 0.0002
-#
-#
 def sim_loop(viz, model, frame_id: int, start_position: np.ndarray, start_velocity: np.ndarray, dt: float, nsteps: int): # ???
     tau0 = np.zeros(model.nv)
     qs = [START_POSITION]
