@@ -43,7 +43,7 @@ def dynamics(y, t):
 
     tau = np.zeros(model.nv)
     fext = pin.StdVec_Force()
-    fext.extend([pin.Force.Zero() for _ in range(len(model.frames))])
+    fext.extend([pin.Force.Zero() for _ in range(model.njoints)])
     fext[1] = pin.Force(force1, np.zeros(3))
     fext[2] = pin.Force(force2, np.zeros(3))
 
