@@ -7,3 +7,4 @@ models/example-robot-data/*
 
 out/*
 !out/.gitkeep
+!out/showcase.mp4

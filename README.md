@@ -14,6 +14,10 @@ cd THIS_REPO_FOLDER
 cp -r /tmp/example-robot-data/robots ./models/example-robot-data/
 ```
 
+# How to run
+
+python meshcat_viewer.py
+
 # Useful links
 
 How to install: https://stack-of-tasks.github.io/pinocchio/download.html
@@ -25,3 +29,12 @@ Viewer example: https://github.com/stack-of-tasks/pinocchio/blob/master/examples
 Models: https://github.com/stack-of-tasks/pinocchio/blob/master/models/
 
 Tutorial: https://github.com/rocketman123456/pinocchio_tutorial
+
+# Useful commands
+
+- Save conda env
+
+```bash
+conda env export > environment.yml
+conda list --export > requirements.txt
+```

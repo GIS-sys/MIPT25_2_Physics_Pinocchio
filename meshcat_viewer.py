@@ -5,6 +5,42 @@ import pinocchio as pin
 from pinocchio.visualize import MeshcatVisualizer
 
 
+# Redefine method in capturing video to increase video capturing speed
+import time
+from tqdm import tqdm
+def play(self, q_trajectory, dt=None, callback=None, capture=False, capture_only_step=1, **kwargs):
+    """
+    Play a trajectory with given time step. Optionally capture RGB images and
+    returns them.
+    """
+    nsteps = len(q_trajectory)
+    if not capture:
+        capture = self.has_video_writer()
+
+    imgs = []
+    for i in tqdm(range(nsteps)):
+        t0 = time.time()
+        self.display(q_trajectory[i])
+        if callback is not None:
+            callback(i, **kwargs)
+        if capture and i % capture_only_step == 0:
+            img_arr = self.captureImage()
+            if not self.has_video_writer():
+                imgs.append(img_arr)
+            else:
+                self._video_writer.append_data(img_arr)
+        t1 = time.time()
+        elapsed_time = t1 - t0
+        if dt is not None and elapsed_time < dt:
+            self.sleep(dt - elapsed_time)
+    if capture and not self.has_video_writer():
+        return imgs
+
+MeshcatVisualizer.play = play
+
+
+
+
 # Load the URDF model.
 pinocchio_model_dir = Path(__file__).parent / "models"
 model_path = pinocchio_model_dir / "example-robot-data/robots"
@@ -79,7 +115,7 @@ def sim_loop(): # ???
     tau0 = np.zeros(model.nv)
     qs = [q1]
     vs = [v0]
-    nsteps = 10000
+    nsteps = 2000
     for i in range(nsteps):
         q = qs[i]
         v = vs[i]
@@ -104,4 +140,4 @@ def my_callback(i, *args): # ???
 
 
 with viz.create_video_ctx("out/leap.mp4"): # ???
-    viz.play(qs, dt, callback=my_callback)
+    viz.play(qs, dt, callback=my_callback, capture_only_step=16)
