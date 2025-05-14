@@ -61,11 +61,14 @@ VELOCITY_RANDOM_UP[2] = 4
 
 START_POSITION = POSITION_READY
 START_VELOCITY = VELOCITY_RANDOM
-DTIME = 0.001
+DTIME = 0.0001
 NSTEPS = 2000
 
-FRAME_ID = model.getFrameId("HR_FOOT") # coordinate frame
+OUT_VIDEO_NAME = "leap.mp4"
 
+
+# Create a coordinate frame
+frame_id = model.getFrameId("HR_FOOT")
 
 # Start the visualizer | Opens blank webpage
 viz = MeshcatVisualizer(model, collision_model, visual_model)
@@ -73,17 +76,10 @@ viz.initViewer(open=True)
 viz.loadViewerModel()
 
 
-# Display a robot configuration # ???
-q0 = POSITION_STAND
-viz.display(q0)
-viz.displayVisuals(True)
-#
-#
 ## Create a convex shape from solo main body # ???
 #mesh = visual_model.geometryObjects[0].geometry
 #mesh.buildConvexRepresentation(True)
 #convex = mesh.convex
-#
 ## Place the convex object on the scene and display it # ???
 #if convex is not None:
 #    placement = pin.SE3.Identity()
@@ -126,14 +122,19 @@ viz.displayVisuals(True)
 #dt = 0.0002
 #
 #
-def sim_loop(data, start_position: np.ndarray, start_velocity: np.ndarray, dt: float, nsteps: int, frame_id: int): # ???
+def sim_loop(viz, model, frame_id: int, start_position: np.ndarray, start_velocity: np.ndarray, dt: float, nsteps: int): # ???
     tau0 = np.zeros(model.nv)
     qs = [START_POSITION]
     vs = [START_VELOCITY]
-    for i in range(nsteps):
-        q = qs[i]
-        v = vs[i]
-        a1 = pin.aba(model, data, q, v, tau0)
+    for i in tqdm(range(nsteps)):
+        # Take current q,v
+        # Find acceleration
+        # Calculate next q,v
+        # Add them
+        # Display positions and draw velocities
+        q = qs[-1]
+        v = vs[-1]
+        a1 = pin.aba(model, viz.data, q, v, tau0)
         vnext = v + dt * a1
         qnext = pin.integrate(model, q, dt * vnext)
         qs.append(qnext)
@@ -143,15 +144,27 @@ def sim_loop(data, start_position: np.ndarray, start_velocity: np.ndarray, dt: f
     return qs, vs
 
 
-qs, vs = sim_loop(viz.data, START_POSITION, START_VELOCITY, DTIME, NSTEPS, FRAME_ID) # ???
-#
-#fid2 = model.getFrameId("FL_FOOT") # ???
-#
-#
-#def my_callback(i, *args): # ???
-#    viz.drawFrameVelocities(frame_id)
-#    viz.drawFrameVelocities(fid2)
-#
-#
-#with viz.create_video_ctx("out/leap.mp4"): # ???
-#    viz.play(qs, dt, callback=my_callback, capture_only_step=32)
+# Run the simulation online
+qs, vs = sim_loop(viz, model, frame_id, START_POSITION, START_VELOCITY, DTIME, NSTEPS)
+
+
+# Record a video based on already simulated data
+cos = input("Want to record a video? Enter to skip, number to create video with capture_only_step=<input>: ")
+if cos:
+    try:
+        cos = int(cos)
+    except:
+        print("You should input an integer! To avoid error, assuming integer 32")
+        cos = 32
+
+    # Create a frame for video
+    frame_id_video = model.getFrameId("FL_FOOT")
+
+    # Callback for writing both into output AND video
+    def my_callback(i, *args):
+        viz.drawFrameVelocities(frame_id)
+        viz.drawFrameVelocities(frame_id_video)
+
+    # Write video
+    with viz.create_video_ctx(f"out/{OUT_VIDEO_NAME}"):
+        viz.play(qs, DTIME, callback=my_callback, capture_only_step=cos)
