@@ -21,3 +21,5 @@ Docs: https://gepettoweb.laas.fr/doc/stack-of-tasks/pinocchio/master/doxygen-htm
 Viewer example: https://github.com/stack-of-tasks/pinocchio/blob/master/examples/meshcat-viewer.py
 
 Models: https://github.com/stack-of-tasks/pinocchio/blob/master/models/
+
+Tutorial: https://github.com/rocketman123456/pinocchio_tutorial

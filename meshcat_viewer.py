@@ -93,14 +93,14 @@ viz.display()
 viz.drawFrameVelocities(frame_id=frame_id)
 
 model.gravity.linear[:] = 0.0
-dt = 0.01
+dt = 0.0001
 
 
 def sim_loop():
     tau0 = np.zeros(model.nv)
     qs = [q1]
     vs = [v0]
-    nsteps = 1000
+    nsteps = 10000
     for i in range(nsteps):
         q = qs[i]
         v = vs[i]
