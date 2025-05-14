@@ -4,3 +4,6 @@
 
 models/example-robot-data/*
 !models/example-robot-data/.gitkeep
+
+out/*
+!out/.gitkeep
