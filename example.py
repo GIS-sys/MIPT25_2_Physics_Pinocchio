@@ -29,31 +29,26 @@ damping = 2.0                     # Демпфирование
 # 3. Функция для расчета сил и производных состояния
 def dynamics(y, t):
     q, qdot = y[:model.nq], y[model.nq:]
-    
-    # Прямая кинематика для центров масс
-    pin.forwardKinematics(model, data, q)
-    com1 = data.oMi[1].translation  # Центр масс 1-го звена
-    com2 = data.oMi[2].translation  # Центр масс 2-го звена
-    
-    # Целевые позиции центров масс (при q_target)
+
+    pin.forwardKinematics(model, data, q, qdot)
+    com1 = data.oMi[1].translation
+    com2 = data.oMi[2].translation
+
     pin.forwardKinematics(model, data, q_target)
     com1_target = data.oMi[1].translation
     com2_target = data.oMi[2].translation
-    
-    # Рассчитываем "пружинные" силы
+
     force1 = k_spring * (com1_target - com1) - damping * qdot[0] * np.array([1, 0, 0])
     force2 = k_spring * (com2_target - com2) - damping * qdot[1] * np.array([0, 1, 0])
-    
-    # Создаем объект внешних сил
+
+    tau = np.zeros(model.nv)
     fext = pin.StdVec_Force()
-    fext.extend([pin.Force.Zero() for _ in range(model.njoints)])
-    fext[1] = pin.Force(force1, np.zeros(3))  # Сила для 1-го звена
-    fext[2] = pin.Force(force2, np.zeros(3))  # Сила для 2-го звена
-    
-    # Вычисляем ускорения
-    pin.computeAllTerms(model, data, q, qdot)
-    ddq = pin.aba(model, data, q, qdot, fext)
-    
+    fext.extend([pin.Force.Zero() for _ in range(len(model.frames))])
+    fext[1] = pin.Force(force1, np.zeros(3))
+    fext[2] = pin.Force(force2, np.zeros(3))
+
+    ddq = pin.aba(model, data, q, qdot, tau, fext)
+
     return np.concatenate([qdot, ddq])
 
 # 4. Интеграция уравнений движения
