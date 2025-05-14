@@ -60,10 +60,25 @@ result = odeint(dynamics, y0, t_span)
 from meshcat import Visualizer
 from pinocchio.visualize import MeshcatVisualizer
 
-viz = MeshcatVisualizer(model, model, model)
+#viz = MeshcatVisualizer(model, model, model)
+#viz.initViewer(open=True)
+#viz.loadViewerModel()
+#for q in result[:, :model.nq]:
+#    viz.display(q)
+#    pin.forwardKinematics(model, data, q)
+#    print("Current COM positions:", data.oMi[1].translation, data.oMi[2].translation)
+
+#viz = MeshcatVisualizer(model, visual_model=None, collision_model=None)
+#viz.initViewer(open=True)
+#viz.loadViewerModel(rootNodeName="pinocchio")  # Add root node name
+#for q in result[:, :model.nq]:
+#    viz.display(q)
+
+# Create a simple visual model
+visual_model = pin.GeometryModel()
+viz = MeshcatVisualizer(model, visual_model, visual_model)
 viz.initViewer(open=True)
 viz.loadViewerModel()
-
 for q in result[:, :model.nq]:
     viz.display(q)
     pin.forwardKinematics(model, data, q)
