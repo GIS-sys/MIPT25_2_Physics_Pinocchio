@@ -10,7 +10,7 @@ from scipy.integrate import odeint
 robot = example_robot_data.load("talos")
 model, collision_model, visual_model = robot.model, robot.collision_model, robot.visual_model
 #print(model.frames[0].__dir__())
-#print(list(frame.name for frame in model.frames)) # Print all the names of all the points
+print(list(frame.name for frame in model.frames)) # Print all the names of all the points
 
 
 # Constants
@@ -20,35 +20,61 @@ VELOCITY_RANDOM = np.random.randn(model.nv) ** 2 / 200
 VELOCITY_ZERO = np.zeros(model.nv)
 FOOT_TAG_LEFT = "left_sole_link"
 FOOT_TAG_RIGHT = "right_sole_link"
+HAND_TAG_LEFT = "gripper_left_fingertip_3_link"
+HAND_TAG_RIGHT = "gripper_right_fingertip_3_link"
 ROOT_TAG = "root_joint"
 DELAY_BEFORE_LOADED = 1 # seconds to wait before broser is loaded
 
 
-# Determine what to keep still
-START_POSITION = POSITION_SITTING
-# START_VELOCITY = VELOCITY_RANDOM
-START_VELOCITY = VELOCITY_ZERO
+
+
+# vvvvvvvvvvvvvvvvvvvvvvvvvvv
+# CHANGEABLE
+
+# 1
+# What to keep still, options: 1) only one leg, 2) both legs, 3) one leg and one arm
 # TAGS_TO_KEEP_STILL = [FOOT_TAG_LEFT]
-TAGS_TO_KEEP_STILL = [FOOT_TAG_LEFT, FOOT_TAG_RIGHT]
+# TAGS_TO_KEEP_STILL = [FOOT_TAG_LEFT, FOOT_TAG_RIGHT]
+TAGS_TO_KEEP_STILL = [FOOT_TAG_LEFT, FOOT_TAG_RIGHT, HAND_TAG_RIGHT]
+
+# 2
+# How exactly to move main part of the body, options: 1) squats, 2) free fall under gravity
+#BODY_DISPLACEMENT = lambda k: np.array(
+#    [
+#        0.0,
+#        0.0,
+#        np.abs(0.2 * np.sin(2.0 * np.pi * k / 200)),
+#    ]
+#)
+BODY_DISPLACEMENT = lambda k: 0.1 * np.array(
+    [
+        0.0,
+        10 * k / 2000,
+        -10 * k / 2000 + 9.81 * (k / 2000)**2 * 10,
+    ]
+)
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+
+START_VELOCITY = VELOCITY_ZERO
 FRAMES_TO_KEEP_STILL = [model.getFrameId(tag) for tag in TAGS_TO_KEEP_STILL]
+START_POSITION = POSITION_SITTING
 DTIME = 0.001
 NSTEPS = 2000
 SLEEP_BETWEEN = 1 / 600
-F_EXT = np.array([-100, 100, 0])  # External force
 
-BODY_DISPLACEMENT = lambda k: np.array(
-    [
-        0.0,
-        0.0,
-        np.abs(0.2 * np.sin(2.0 * np.pi * k / 200)),
-    ]
-)
 
 
 # Start the visualizer
 viz = MeshcatVisualizer(model, collision_model, visual_model)
 viz.initViewer(open=True)
 viz.loadViewerModel()
+
+
+pin.forwardKinematics(model, viz.data, START_POSITION)
+pin.framesForwardKinematics(model, viz.data, START_POSITION)
 
 
 # Create constraints
@@ -88,7 +114,6 @@ constraint_dim = sum([cm.size() for cm in constraint_models])
 def sim_loop(viz, model, start_position: np.ndarray, start_velocity: np.ndarray, dt: float, sleep_between: float, nsteps: int):
     qs = [START_POSITION]
     vs = [START_VELOCITY]
-    data = model.createData()
 
     y = np.ones(constraint_dim)
     pin.computeAllTerms(model, viz.data, qs[-1], np.zeros(model.nv))
@@ -105,12 +130,12 @@ def sim_loop(viz, model, start_position: np.ndarray, start_velocity: np.ndarray,
         # Update body's position using force - gravity + initial velocity
         com_act = viz.data.com[0].copy()
         com_err = com_act - com_base + BODY_DISPLACEMENT(k)
-        kkt_constraint.compute(model, viz.data, constraint_models, constraint_datas, 1e-7)
+        kkt_constraint.compute(model, viz.data, constraint_models, constraint_datas, 1e-8)
         constraint_value = np.concatenate([pin.log6(cd.c1Mc2) for cd in constraint_datas])
         J = np.vstack([pin.getFrameJacobian(model, viz.data, cm.joint1_id, cm.joint1_placement, cm.reference_frame) for cm in constraint_models])
         primal_feas = np.linalg.norm(constraint_value, np.inf)
         dual_feas = np.linalg.norm(J.T.dot(constraint_value + y), np.inf)
-        rhs = np.concatenate([-constraint_value - y * 1e-7, kp * viz.data.mass[0] * com_err, np.zeros(model.nv - 3)])
+        rhs = np.concatenate([-constraint_value - y * 1e-8, kp * viz.data.mass[0] * com_err, np.zeros(model.nv - 3)])
         dz = kkt_constraint.solve(rhs)
         dy = dz[:constraint_dim]
         dq = dz[constraint_dim:]
