@@ -7,6 +7,9 @@ from pinocchio import casadi as cpin
 import casadi
 import matplotlib.pyplot as plt
 
+from utils import play, record, get_out_video_name, get_out_plot_name
+MeshcatVisualizer.play = play
+
 
 # Load the model
 robot = example_robot_data.load('double_pendulum')
@@ -17,14 +20,16 @@ print(list(frame.name for frame in model.frames)) # Print all the names of all t
 # Constants
 START_POSITION = np.array([np.pi / 2, np.pi]) # rotation of 1 from OY clockwise, rotation of 2 in respect to 1 clockwise
 START_VELOCITY = np.array([5, 3])
-GRAVITY = 0.2  # Strength of the gravity
+GRAVITY = 0.1  # Strength of the gravity
 LENGTH1 = 0.1  # Length of pendulum's first hand
 LENGTH2 = 0.2  # Length of pendulum's second hand
-DT = 0.02  # Simulation delta time step
+DTIME = 0.02  # Simulation delta time step
 POWER = 10  # Power of motor to control the pendulum
 INTEGRATION_USE_RUNGE_KUTTA = True  # Whether to use Runge-Kutta method for integration, or just simple dt * a
 TARGET_TIP_POS = [0, LENGTH1 + LENGTH2]  # Target position: tip should be at maximum possible height
 RUNNING_MODELS_AMOUNT = 100  # Amount of steps to achieve goal
+OUT_VIDEO_NAME = get_out_video_name(__file__)
+OUT_PLOT_NAME = get_out_plot_name(__file__)
 
 
 # Start the visualizer
@@ -82,12 +87,12 @@ class CasadiActionModelDoublePendulum:
         if INTEGRATION_USE_RUNGE_KUTTA:
             # Runge-Kutta 4 integration
             k1 = self.xdot(x,                    u)
-            k2 = self.xdot(x + DT / 2 * k1, u)
-            k3 = self.xdot(x + DT / 2 * k2, u)
-            k4 = self.xdot(x + DT * k3,     u)
-            xnext = x + DT / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+            k2 = self.xdot(x + DTIME / 2 * k1, u)
+            k3 = self.xdot(x + DTIME / 2 * k2, u)
+            k4 = self.xdot(x + DTIME * k3,     u)
+            xnext = x + DTIME / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
         else:
-            xnext = x + DT * self.xdot(x, u)
+            xnext = x + DTIME * self.xdot(x, u)
 
         cost = u.T @ u
         return xnext,cost
@@ -155,15 +160,14 @@ ax2.plot(us_sol)
 ax2.set_ylabel('u')
 ax2.legend(['1','2'])
 ax0.set_title("Positions, velocities and losses for joints")
+plt.savefig(f"out/{OUT_PLOT_NAME}")
 plt.show()
 
 
 # Visualize
 viz.setCameraZoom(5)
-viz.play(xs_sol[:,:model.nq], DT, callback=lambda _: time.sleep(0.1))
-
-input("Press ENTER to exit...")
+viz.play(xs_sol[:,:model.nq], DTIME, callback=lambda _: time.sleep(0.1))
 
 
-# Save
-#np.save(open("solution.txt",'wb'),[xs_sol,us_sol])
+# Record a video based on already simulated data
+record(viz, xs_sol[:, :model.nq], OUT_VIDEO_NAME, DTIME, model.getFrameId("base_link"))
