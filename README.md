@@ -5,6 +5,8 @@
 `double_pendulum_pid.py`
 
 ![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase_double_pendulum_pid.mp4)
+![Graph](out/showcase_double_pendulum_pid.png)
+![Graph](out/showcase_double_pendulum_pid.mp4)
 
 2) Double pendulum (optimisation task via casadi)
 
