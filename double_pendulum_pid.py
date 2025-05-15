@@ -53,8 +53,8 @@ time.sleep(1)
 class RotationPos:
     def __init__(self, rotations: tuple[int, int]):
         self.a, self.b = rotations
-        self.pos1 = np.array([math.sin(self.a) * LENGTH1, -math.cos(self.a) * LENGTH1])
-        self.dpos2 = np.array([-math.sin(self.a + self.b) * LENGTH2, -math.cos(self.a + self.b) * LENGTH2])
+        self.pos1 = np.array([-math.sin(self.a) * LENGTH1, math.cos(self.a) * LENGTH1])
+        self.dpos2 = np.array([-math.sin(self.a + self.b) * LENGTH2, math.cos(self.a + self.b) * LENGTH2])
         self.pos2 = self.pos1 + self.dpos2
 
     def __sub__(self, oth):
@@ -102,7 +102,7 @@ class PID:
         print("---compute---")
         print(f"{error=} {self.integral=} {derivative=}")
         self.prev_error = error
-        result = self.Kp * error + self.Ki * self.integral - self.Kd * derivative - 0.2 * velocity
+        result = self.Kp * error + self.Ki * self.integral + self.Kd * derivative - 0.2 * velocity
         result *= self.k
         print(f"{result=}")
         # Clip
