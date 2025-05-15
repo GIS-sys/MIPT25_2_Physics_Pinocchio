@@ -86,7 +86,7 @@ class CasadiActionModelDoublePendulum:
         u += g
         if INTEGRATION_USE_RUNGE_KUTTA:
             # Runge-Kutta 4 integration
-            k1 = self.xdot(x,                    u)
+            k1 = self.xdot(x,                  u)
             k2 = self.xdot(x + DTIME / 2 * k1, u)
             k3 = self.xdot(x + DTIME / 2 * k2, u)
             k4 = self.xdot(x + DTIME * k3,     u)

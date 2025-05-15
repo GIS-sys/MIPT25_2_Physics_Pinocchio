@@ -44,10 +44,10 @@ viz.initViewer(open=True)
 viz.loadViewerModel()
 
 
-def sim_loop(viz, model, frame_id: int, start_position: np.ndarray, start_velocity: np.ndarray, dt: float, nsteps: int): # ???
+def sim_loop(viz, model, frame_id: int, start_position: np.ndarray, start_velocity: np.ndarray, dt: float, nsteps: int):
     tau0 = np.zeros(model.nv) # only torque, no velocity
-    qs = [START_POSITION]
-    vs = [START_VELOCITY]
+    qs = [start_position]
+    vs = [start_velocity]
     for i in tqdm(range(nsteps)):
         # Take current q,v
         # Find acceleration
