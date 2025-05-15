@@ -21,7 +21,6 @@ from pinocchio import casadi as cpin
 import casadi
 import numpy as np
 import matplotlib.pyplot as plt; plt.ion()
-# from pinocchio.visualize import GepettoVisualizer
 from pinocchio.visualize import MeshcatVisualizer
 import example_robot_data
 import time
@@ -29,14 +28,7 @@ import time
 
 def create_double_pendulum_model(with_display=True):
     robot = example_robot_data.load('double_pendulum')
-    # Next 6 lines are to have the pendulum align to face default front plane of the viewer.
-    robot.model.jointPlacements[1] = pin.SE3(pin.utils.rotate('z',-np.pi/2),np.zeros(3))
-    for g in robot.visual_model.geometryObjects:
-        if g.parentJoint == 0:
-            M = g.placement
-            M.rotation = pin.utils.rotate('z',-np.pi/2)
-            g.placement = M
-    # Next 10 lines are to initialize the viewer with the pendulum model.
+
     robot.model.addFrame(pin.Frame('tip',2,5,pin.SE3(np.eye(3),np.array([0,0,0.2])),pin.OP_FRAME))
     viz = MeshcatVisualizer(robot.model, robot.collision_model, robot.visual_model)
     viz.initViewer(open=True)
@@ -49,13 +41,24 @@ def create_double_pendulum_model(with_display=True):
 ### HYPER PARAMETERS
 # Hyperparameters defining the optimal control problem.
 T = 100
-x0 = np.array([-np.pi,1., 1., 0.])
+x0 = np.array([-np.pi,1., 1., 10.])
 costWeightsRunning = np.array([])  # sin, 1-cos, y, ydot, thdot, f
 costWeightsTerminal = np.array([])
 
 ### LOAD AND DISPLAY PENDULUM
 # Load the robot model from example robot data and display it if possible in Gepetto-viewer
 robot,viz = create_double_pendulum_model()
+
+# TODO
+#viz.setCameraPosition(np.array([1, 1, 1]))
+#viz.setCameraTarget([0, 0, 0])
+#viz.setCameraZoom(5)
+#constraint_models[0].joint2_placement = pin.SE3(pin.rpy.rpyToMatrix(np.array([0.0, 0.0, 0.8])), np.array([0.2, 0.1, 0.0]))
+print(list(frame.name for frame in robot.model.frames)) # Print all the names of all the points
+fr = robot.model.getFrameId("base_link")
+fr = robot.model.getFrameId("universe")
+robot.model.frames[fr].placement = pin.SE3(pin.rpy.rpyToMatrix(np.array([0.0, 0.0, 0.8])), np.array([20.2, 0.1, 0.0]))
+
 viz.display(x0[:2])
 time.sleep(1)
 # The pinocchio model is what we are really interested by.
@@ -151,12 +154,13 @@ ax1.legend(['1','2'])
 ax2.plot(us_sol)
 ax2.set_ylabel('u')
 ax2.legend(['1','2'])
-ax0.title("Positions, velocities and losses for joints")
+ax0.set_title("Positions, velocities and losses for joints")
 plt.show()
 if viz:
     print(len(xs_sol))
     print(len(xs_sol[0]))
     print(len(xs_sol[1]))
+    viz.setCameraZoom(5)
     viz.play(xs_sol[:,:model.nq], CasadiActionModelDoublePendulum.dt, callback=lambda _: time.sleep(0.1))
     #viz.play(qs, DTIME, callback=my_callback, capture_only_step=cos)
 
