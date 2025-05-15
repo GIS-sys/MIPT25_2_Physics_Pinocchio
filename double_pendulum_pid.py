@@ -7,6 +7,7 @@ from pinocchio import casadi as cpin
 import casadi
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import math
 
 from utils import play, record, get_out_video_name, get_out_plot_name
 MeshcatVisualizer.play = play
@@ -24,11 +25,15 @@ START_VELOCITY = np.array([5, 3])
 GRAVITY = 0.1  # Strength of the gravity
 LENGTH1 = 0.1  # Length of pendulum's first hand
 LENGTH2 = 0.2  # Length of pendulum's second hand
-DTIME = 0.02  # Simulation delta time step
-POWER = 10  # Power of motor to control the pendulum
+DTIME = 0.002  # Simulation delta time step
+PID_MAX_POWER = 100  # Max power of motor to control the pendulum
+PID_KP = 0.01
+PID_KI = 0.1
+PID_KD = 1.0
+PID_K = 4.0
 SIMULATION_FRAMERATE = 60
 INTEGRATION_USE_RUNGE_KUTTA = True  # Whether to use Runge-Kutta method for integration, or just simple dt * a
-TARGET_TIP_POS = [0, LENGTH1 + LENGTH2]  # Target position: tip should be at maximum possible height
+TARGET_MOTORS = [0, 0]  # Target position
 NSTEPS = 4000
 OUT_VIDEO_NAME = get_out_video_name(__file__)
 OUT_PLOT_NAME = get_out_plot_name(__file__)
@@ -45,10 +50,32 @@ time.sleep(1)
 
 
 class PID:
-    pass
+    def __init__(self, k: float, Kp: float, Ki: float, Kd: float, target: np.ndarray, max_power: float):
+        # Save configs
+        self.k = k
+        self.Kp = Kp
+        self.Ki = Ki
+        self.Kd = Kd
+        self.target = target
+        self.max_power = max_power
+        # Internal parameters
+        self.prev_error = 0.0
+        self.integral = 0.0
 
-    def __call__(self, qs, vs, tau0):
-        return tau0
+    def compute(self, current: np.ndarray, dt: float):
+        error = self.target - current
+        self.integral += error * dt
+        derivative = (error - self.prev_error) / dt
+        self.prev_error = error
+        result = self.Kp * error + self.Ki * self.integral + self.Kd * derivative
+        result *= self.k
+        # Clip
+        result[0] = min(self.max_power, max(-self.max_power, result[0]))
+        result[1] = 0
+        return result
+
+    def __call__(self, qs: np.ndarray, vs: np.ndarray, tau0: np.ndarray, dt: float):
+        return self.compute(qs[-1], dt) # TODO
 
 
 def sim_loop(viz, model, pid: PID, start_position: np.ndarray, start_velocity: np.ndarray, dt: float, nsteps: int):
@@ -63,29 +90,29 @@ def sim_loop(viz, model, pid: PID, start_position: np.ndarray, start_velocity: n
         # Display positions and draw velocities
         q = qs[-1]
         v = vs[-1]
+        tau0 = pid(qs, vs, tau0, dt)
         xdot = lambda qc, vc, tauc: (vc, pin.aba(model, viz.data, qc, vc, tauc))
         if INTEGRATION_USE_RUNGE_KUTTA:
             # Runge-Kutta 4 integration
-            k1 = xdot(q,                     v,                     tau0)
-            k2 = xdot(q + DTIME / 2 * k1[0], v + DTIME / 2 * k1[1], tau0)
-            k3 = xdot(q + DTIME / 2 * k2[0], v + DTIME / 2 * k2[1], tau0)
-            k4 = xdot(q + DTIME * k3[0],     v + DTIME * k3[1],     tau0)
-            qdelta = DTIME / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0])
-            vdelta = DTIME / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1])
+            k1 = xdot(q,                  v   ,               tau0)
+            k2 = xdot(q + dt / 2 * k1[0], v + dt / 2 * k1[1], tau0)
+            k3 = xdot(q + dt / 2 * k2[0], v + dt / 2 * k2[1], tau0)
+            k4 = xdot(q + dt * k3[0],     v + dt * k3[1],     tau0)
+            qdelta = dt / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0])
+            vdelta = dt / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1])
         else:
-            qdelta, vdelta = DTIME * xdot(q, v, tau0)
+            qdelta, vdelta = dt * xdot(q, v, tau0)
         qnext = q + qdelta
         vnext = v + vdelta
         qs.append(qnext)
         vs.append(vnext)
+        pin.computeAllTerms(model, viz.data, qnext, np.zeros(model.nv))
         viz.display(qnext)
-
-        tau0 = pid(qs, vs, tau0)
         time.sleep(1 / SIMULATION_FRAMERATE)
     return qs, vs
 
 
-pid = PID() # TODO
+pid = PID(k=PID_K, Kp=PID_KP, Ki=PID_KI, Kd=PID_KD, max_power=PID_MAX_POWER, target=TARGET_MOTORS)
 
 
 # Run the simulation online
