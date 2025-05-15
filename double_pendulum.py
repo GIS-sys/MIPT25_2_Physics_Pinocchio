@@ -1,3 +1,101 @@
+import time
+import example_robot_data
+from pinocchio.visualize import MeshcatVisualizer
+import numpy as np
+
+
+# Load the model
+robot = example_robot_data.load('double_pendulum')
+model, collision_model, visual_model = robot.model, robot.collision_model, robot.visual_model
+print(list(frame.name for frame in model.frames)) # Print all the names of all the points
+
+
+# Constants
+# TODO
+RUNNING_MODELS_AMOUNT = 100
+START_POSITION = np.array([-np.pi, 1])
+START_VELOCITY = np.array([-0.5, 0.1])
+
+
+# Start the visualizer
+viz = MeshcatVisualizer(model, collision_model, visual_model)
+viz.initViewer(open=True)
+viz.loadViewerModel()
+
+
+viz.display(START_POSITION)
+time.sleep(1)
+
+
+# Set camera and robot positions
+# TODO
+#viz.setCameraPosition(np.array([1, 1, 1]))
+#viz.setCameraTarget([0, 0, 0])
+#viz.setCameraZoom(5)
+#constraint_models[0].joint2_placement = pin.SE3(pin.rpy.rpyToMatrix(np.array([0.0, 0.0, 0.8])), np.array([0.2, 0.1, 0.0]))
+#print(list(frame.name for frame in robot.model.frames)) # Print all the names of all the points
+#fr = robot.model.getFrameId("base_link")
+#fr = robot.model.getFrameId("universe")
+#robot.model.frames[fr].placement = pin.SE3(pin.rpy.rpyToMatrix(np.array([0.0, 0.0, 0.8])), np.array([20.2, 0.1, 0.0]))
+
+
+# We will solve the problem by finding a chain of states, which satisfy certain conditions
+# States are described via pair (xt, ut), where:
+#   xt is (angle1, angle2, rotspeed1, rotspeed2)
+#   ut is (force1, force2) - how we control the pendulum
+# TODO
+# We define method calc(), which will take state (x, u) and calculate both next state, as well as loss - which we will minimize
+class CasadiActionModelDoublePendulum:
+    dt = 0.02
+    length = .3  # pendulum elongated dimension
+    def __init__(self,model):
+        self.cmodel = cmodel = cpin.Model(model)
+        self.cdata = cdata = cmodel.createData()
+        nq,nv = cmodel.nq,cmodel.nv
+        self.nx = nq+nv
+        self.nu = nv
+
+        # The self.xdot will be a casadi function mapping:  state,control -> [velocity,acceleration]
+        cx = casadi.SX.sym("x",self.nx,1)
+        cu = casadi.SX.sym("u",self.nu,1)
+        self.xdot = casadi.Function('xdot', [cx,cu], [ casadi.vertcat(cx[nq:], cpin.aba(cmodel,cdata,cx[:nq],cx[nq:],cu)) ])
+        print(self.xdot)
+
+        # The self.tip will be a casadi function mapping: state -> X-Z position of the pendulum tip
+        cpin.framesForwardKinematics(self.cmodel,self.cdata,cx[:nq])
+        self.tip = casadi.Function('tip', [cx], [ self.cdata.oMf[-1].translation[[0,2]] ])
+
+    def calc(self, x, u):
+        if True:
+            # Runge-Kutta 4 integration
+            k1 = self.xdot(x,                u)
+            k2 = self.xdot(x + self.dt/2*k1, u)
+            k3 = self.xdot(x + self.dt/2*k2, u)
+            k4 = self.xdot(x + self.dt*k3,   u)
+            xnext = x + self.dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+        else:
+            xnext = x + self.dt * self.xdot(x, u)
+
+        cost = u.T@u
+        return xnext,cost
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 '''
 Solve a pinocchio-based double-pendulum problem, formulated as multiple shooting with RK4 integration.
 min_xs,us    sum_0^T-1  l(x,u)
@@ -19,96 +117,16 @@ As a results, it plots the state and control trajectories and display the moveme
 import pinocchio as pin
 from pinocchio import casadi as cpin
 import casadi
-import numpy as np
 import matplotlib.pyplot as plt; plt.ion()
-from pinocchio.visualize import MeshcatVisualizer
-import example_robot_data
-import time
 
 
-def create_double_pendulum_model(with_display=True):
-    robot = example_robot_data.load('double_pendulum')
-
-    robot.model.addFrame(pin.Frame('tip',2,5,pin.SE3(np.eye(3),np.array([0,0,0.2])),pin.OP_FRAME))
-    viz = MeshcatVisualizer(robot.model, robot.collision_model, robot.visual_model)
-    viz.initViewer(open=True)
-    viz.loadViewerModel()
-    viz.display(robot.q0)
-
-    return robot,viz
-
-
-### HYPER PARAMETERS
-# Hyperparameters defining the optimal control problem.
-T = 100
-x0 = np.array([-np.pi,1., 1., 10.])
-costWeightsRunning = np.array([])  # sin, 1-cos, y, ydot, thdot, f
-costWeightsTerminal = np.array([])
-
-### LOAD AND DISPLAY PENDULUM
-# Load the robot model from example robot data and display it if possible in Gepetto-viewer
-robot,viz = create_double_pendulum_model()
-
-# TODO
-#viz.setCameraPosition(np.array([1, 1, 1]))
-#viz.setCameraTarget([0, 0, 0])
-#viz.setCameraZoom(5)
-#constraint_models[0].joint2_placement = pin.SE3(pin.rpy.rpyToMatrix(np.array([0.0, 0.0, 0.8])), np.array([0.2, 0.1, 0.0]))
-print(list(frame.name for frame in robot.model.frames)) # Print all the names of all the points
-fr = robot.model.getFrameId("base_link")
-fr = robot.model.getFrameId("universe")
-robot.model.frames[fr].placement = pin.SE3(pin.rpy.rpyToMatrix(np.array([0.0, 0.0, 0.8])), np.array([20.2, 0.1, 0.0]))
-
-viz.display(x0[:2])
-time.sleep(1)
-# The pinocchio model is what we are really interested by.
-model = robot.model
-
-
-### ACTION MODEL
-# The action model stores the computation of the dynamic -f- and cost -l- functions, both return by
-# calc as self.calc(x,u) -> [xnext=f(x,u),cost=l(x,u)]
-# The dynamics is obtained by RK4 integration of the pinocchio ABA function.
-# The cost is a sole regularization of u**2
-class CasadiActionModelDoublePendulum:
-    dt = 0.02
-    length = .3  # pendulum elongated dimension
-    def __init__(self,model,weights):
-        self.weights = weights.copy()
-
-        self.cmodel = cmodel = cpin.Model(model)
-        self.cdata = cdata = cmodel.createData()
-        nq,nv = cmodel.nq,cmodel.nv
-        self.nx = nq+nv
-        self.nu = nv
-
-        # The self.xdot will be a casadi function mapping:  state,control -> [velocity,acceleration]
-        cx = casadi.SX.sym("x",self.nx,1)
-        cu = casadi.SX.sym("u",self.nu,1)
-        self.xdot = casadi.Function('xdot', [cx,cu], [ casadi.vertcat(cx[nq:], cpin.aba(cmodel,cdata,cx[:nq],cx[nq:],cu)) ])
-
-        # The self.tip will be a casadi function mapping: state -> X-Z position of the pendulum tip
-        cpin.framesForwardKinematics(self.cmodel,self.cdata,cx[:nq])
-        self.tip = casadi.Function('tip', [cx], [ self.cdata.oMf[-1].translation[[0,2]] ])
-
-    def calc(self,x, u):
-        # Runge-Kutta 4 integration
-        F = self.xdot; dt = self.dt
-        k1 = F(x,           u)
-        k2 = F(x + dt/2*k1, u)
-        k3 = F(x + dt/2*k2, u)
-        k4 = F(x + dt*k3,   u)
-        xnext = x + dt/6*(k1+2*k2+2*k3+k4)
-
-        cost = u.T@u
-        return xnext,cost
     
 ### PROBLEM
 opti = casadi.Opti()
 # The control models are stored as a collection of shooting nodes called running models,
 # with an additional terminal model.
-runningModels = [ CasadiActionModelDoublePendulum(model,costWeightsRunning) for t in range(T) ]
-terminalModel = CasadiActionModelDoublePendulum(model,costWeightsTerminal)
+runningModels = [ CasadiActionModelDoublePendulum(model) for t in range(RUNNING_MODELS_AMOUNT) ]
+terminalModel = CasadiActionModelDoublePendulum(model)
 
 # Decision variables
 xs = [ opti.variable(model.nx) for model in runningModels+[terminalModel] ]     # state variable
@@ -116,16 +134,16 @@ us = [ opti.variable(model.nu) for model in runningModels ]                     
 
 # Roll out loop, summing the integral cost and defining the shooting constraints.
 totalcost = 0
-opti.subject_to(xs[0] == x0)
-for t in range(T):
+opti.subject_to(xs[0] == np.concatenate((START_POSITION, START_VELOCITY)))
+for t in range(RUNNING_MODELS_AMOUNT):
     xnext,rcost = runningModels[t].calc(xs[t], us[t])
     opti.subject_to(xs[t + 1] == xnext )
     totalcost += rcost
-    opti.subject_to(opti.bounded(-.05, us[t][0], .05)) # control is limited
+    opti.subject_to(opti.bounded(-.005, us[t][0], .005)) # control is limited
     
 # Additional terminal constraint
 opti.subject_to(xs[-1][model.nq:] == 0)  # 0 terminal value
-opti.subject_to(terminalModel.tip(xs[T])==[0,terminalModel.length]) # tip of pendulum at max altitude
+opti.subject_to(terminalModel.tip(xs[RUNNING_MODELS_AMOUNT])==[0,terminalModel.length]) # tip of pendulum at max altitude
 
 ### SOLVE
 opti.minimize(totalcost)
