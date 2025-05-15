@@ -21,19 +21,19 @@ print(list(frame.name for frame in model.frames)) # Print all the names of all t
 
 # Constants
 START_POSITION = np.array([np.pi / 2, np.pi]) # rotation of 1 from OY clockwise, rotation of 2 in respect to 1 clockwise
-START_VELOCITY = np.array([5, 3])
+START_VELOCITY = np.array([5.0, 3.0])
 GRAVITY = 0.1  # Strength of the gravity
 LENGTH1 = 0.1  # Length of pendulum's first hand
 LENGTH2 = 0.2  # Length of pendulum's second hand
-DTIME = 0.002  # Simulation delta time step
-PID_MAX_POWER = 100  # Max power of motor to control the pendulum
+DTIME = 0.005  # Simulation delta time step
+PID_MAX_POWER = 2  # Max power of motor to control the pendulum
 PID_KP = 0.01
 PID_KI = 0.1
 PID_KD = 1.0
-PID_K = 4.0
+PID_K = 1
 SIMULATION_FRAMERATE = 60
 INTEGRATION_USE_RUNGE_KUTTA = True  # Whether to use Runge-Kutta method for integration, or just simple dt * a
-TARGET_MOTORS = [0, 0]  # Target position
+TARGET_MOTORS = [0.0, 0.0]  # Target position
 NSTEPS = 4000
 OUT_VIDEO_NAME = get_out_video_name(__file__)
 OUT_PLOT_NAME = get_out_plot_name(__file__)
@@ -74,12 +74,12 @@ class PID:
         result[1] = 0
         return result
 
-    def __call__(self, qs: np.ndarray, vs: np.ndarray, tau0: np.ndarray, dt: float):
+    def __call__(self, qs: np.ndarray, vs: np.ndarray, torque0: np.ndarray, dt: float):
         return self.compute(qs[-1], dt) # TODO
 
 
 def sim_loop(viz, model, pid: PID, start_position: np.ndarray, start_velocity: np.ndarray, dt: float, nsteps: int):
-    tau0 = np.zeros(model.nv)
+    torque0 = np.zeros(model.nv)
     qs = [start_position]
     vs = [start_velocity]
     for i in tqdm(range(nsteps)):
@@ -90,23 +90,26 @@ def sim_loop(viz, model, pid: PID, start_position: np.ndarray, start_velocity: n
         # Display positions and draw velocities
         q = qs[-1]
         v = vs[-1]
-        tau0 = pid(qs, vs, tau0, dt)
-        xdot = lambda qc, vc, tauc: (vc, pin.aba(model, viz.data, qc, vc, tauc))
+        torque0 = pid(qs, vs, torque0, dt)
+        print(torque0, pid.max_power)
+        xdot = lambda qc, vc, torquec: (vc, pin.aba(model, viz.data, qc, vc, torquec))
         if INTEGRATION_USE_RUNGE_KUTTA:
             # Runge-Kutta 4 integration
-            k1 = xdot(q,                  v   ,               tau0)
-            k2 = xdot(q + dt / 2 * k1[0], v + dt / 2 * k1[1], tau0)
-            k3 = xdot(q + dt / 2 * k2[0], v + dt / 2 * k2[1], tau0)
-            k4 = xdot(q + dt * k3[0],     v + dt * k3[1],     tau0)
+            k1 = xdot(q,                  v,                  torque0)
+            k2 = xdot(q + dt / 2 * k1[0], v + dt / 2 * k1[1], torque0)
+            k3 = xdot(q + dt / 2 * k2[0], v + dt / 2 * k2[1], torque0)
+            k4 = xdot(q + dt * k3[0],     v + dt * k3[1],     torque0)
             qdelta = dt / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0])
             vdelta = dt / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1])
         else:
-            qdelta, vdelta = dt * xdot(q, v, tau0)
+            qdelta, vdelta = xdot(q, v, torque0)
+            qdelta *= dt
+            vdelta *= dt
         qnext = q + qdelta
         vnext = v + vdelta
         qs.append(qnext)
         vs.append(vnext)
-        pin.computeAllTerms(model, viz.data, qnext, np.zeros(model.nv))
+        pin.computeAllTerms(model, viz.data, q, v)
         viz.display(qnext)
         time.sleep(1 / SIMULATION_FRAMERATE)
     return qs, vs
