@@ -20,14 +20,14 @@ print(list(frame.name for frame in model.frames)) # Print all the names of all t
 
 
 # Constants
-START_POSITION = np.array([np.pi / 2, np.pi / 2]) # rotation of 1 from OY clockwise, rotation of 2 in respect to 1 clockwise
+START_POSITION = np.array([np.pi, 0]) # rotation of 1 from OY clockwise, rotation of 2 in respect to 1 clockwise
 START_POSITION = np.array([0, 0])
-START_VELOCITY = np.array([5.0, 3.0])
-START_VELOCITY = np.array([0, 0])
-GRAVITY = 0.1  # Strength of the gravity
+#START_VELOCITY = np.array([5.0, 5.0])
+START_VELOCITY = np.array([1, 0])
+#START_VELOCITY /= 20
 LENGTH1 = 0.1  # Length of pendulum's first hand
 LENGTH2 = 0.2  # Length of pendulum's second hand
-DTIME = 0.001  # Simulation delta time step
+DTIME = 0.0003  # Simulation delta time step
 SIMULATION_FRAMERATE = 60
 INTEGRATION_USE_RUNGE_KUTTA = True  # Whether to use Runge-Kutta method for integration, or just simple dt * a
 TARGET_MOTORS = [0.0, 0.0]  # Target position
@@ -60,33 +60,46 @@ class RotationPos:
 class RotationBoth:
     def __init__(self, rotations: tuple[int, int]):
         self.a, self.b = rotations
-        self.rot1 = self.a
-        self.rot2 = self.a + self.b
+        self.rot1 = self.a % (2 * np.pi)
+        if self.rot1 > np.pi:
+            self.rot1 -= 2 * np.pi
+        self.rot2 = (self.a + self.b) % (2 * np.pi)
+        if self.rot2 > np.pi:
+            self.rot2 -= 2 * np.pi
 
     def modify(self, current: tuple[int, int]):
-        self.rot2 -= min(0.3, max(-0.3, current[0] * 2))
+        ROT = 0.2
+        value = min(ROT, abs(current[0] + current[1]) * 0.2)
+        self.rot2 -= (value / ROT) * ROT * np.sign(current[0])
+        # self.rot2 += min(0.1, max(-0.1, (current[0] + current[1]) * 10))
+        # self.rot2 -= current[1] / 10
+        #print(self.rot2)
+        #print(RotationPos(current).pos2[0] * 2, "\n\n")
+        #self.rot2 += np.clip(RotationPos(current).pos2[0] * 2, -0.2, 0.2)
+        #self.rot1 -= current[0] * 0.5
         return self
 
     def __sub__(self, oth):
-        return np.array([self.rot1 - oth.rot1, self.rot2 - oth.rot2])
+        result = np.array([self.rot1 - oth.rot1, self.rot2 - oth.rot2])
+        for i in range(2):
+            result[i] = result[i] % (2 * np.pi)
+            if result[i] >= np.pi:
+                result[i] = result[i] - 2 * np.pi
+        result[0] = (result[1] / np.pi) ** 3 * np.pi
+        return result
 
     def __repr__(self):
         return f"({self.rot1}, {self.rot2})"
 
 
-PID_MAX_POWER = 15
-#PID_KP = np.array([5.0, 1.0])
-#PID_KI = np.array([0.1, 5])
-#PID_KD = np.array([0.2, 12.0])
-#PID_VELOCITY_STEP = DTIME / 10
-#PID_K = 10
-#PID_FIRST_WEIGHT = 0.2
+PID_MAX_POWER = 10
 PID_KP = np.array([100.0, 100.0])
-PID_KI = np.array([0.01, 0.01])
-PID_KD = np.array([1.01, 2.1])
-PID_VELOCITY_STEP = 0
-PID_K = 1
-PID_FIRST_WEIGHT = 0.1
+PID_KI = np.array([-0.01, 0.01])
+PID_KD = np.array([0.08, 0.8])
+PID_KD_MAX_MOD = 500
+PID_VELOCITY_STEP = DTIME * 5
+PID_K = 0.1
+PID_FIRST_WEIGHT = 0.2
 
 class PID:
     def __init__(self, target: np.ndarray):
@@ -95,47 +108,57 @@ class PID:
         self.prev_error = 0.0
         self.integral = 0.0
         # State
-        self.is_pumping = False
+        # self.is_pumping = False
 
     def compute(self, current: np.ndarray, velocity: np.ndarray, dt: float):
-        # Pump energy into system if needed
-        Ek1 = velocity[0]**2 * LENGTH1**2 / 2
-        Ek2 = velocity[1]**2 * LENGTH2**2 / 2
-        Ep1 = LENGTH1 * math.cos(current[0]) * 9.81
-        Ep2 = (LENGTH1 * math.cos(current[0]) + LENGTH2 * math.cos(current[0] + current[1])) * 9.81
-        Ek = Ek1 + Ek2
-        Ep = Ep1 + Ep2
-        if Ek < 0.5 and Ep < 0:
-            self.is_pumping = True
-        if Ek + Ep >= 5:
-            self.is_pumping = False
-        if self.is_pumping:
-            print("PUMP" * 10)
-            return np.array([
-                np.sign(velocity[0] * np.sin(current[0]) + velocity[1] * np.sin(current[1])) * 0.5,
-                0
-            ])
+        # # Pump energy into system if needed
+        # Ek1 = velocity[0]**2 * LENGTH1**2 / 2
+        # Ek2 = velocity[1]**2 * LENGTH2**2 / 2
+        # Ep1 = LENGTH1 * math.cos(current[0]) * 9.81
+        # Ep2 = (LENGTH1 * math.cos(current[0]) + LENGTH2 * math.cos(current[0] + current[1])) * 9.81
+        # Ek = Ek1 + Ek2
+        # Ep = Ep1 + Ep2
+        # if Ek < 0.5 and Ep < 0:
+        #     self.is_pumping = True
+        # if Ek >= 2 and Ep > 0:
+        #     self.is_pumping = False
+        # if False and self.is_pumping:
+        #     #print("PUMP" * 10)
+        #     result = np.array([
+        #         PID_MAX_POWER / 2, #np.sign(np.sin(current[0])) * PID_MAX_POWER,
+        #         0
+        #     ])
+        #     print(f"PUMP {result=}")
+        #     return result
 
+        # if Ek > 50:
+        #     MAX_POWER = PID_MAX_POWER / 10
+        # else:
+        #     MAX_POWER = PID_MAX_POWER
+        MAX_POWER = PID_MAX_POWER
         # Basic PID
         current = current + velocity * PID_VELOCITY_STEP
         error = RotationBoth(self.target).modify(current) - RotationBoth(current)
+        error -= velocity * 0.02
         self.integral += error * dt
         derivative = (error - self.prev_error) / dt
-        print(RotationBoth(self.target))
-        print(RotationBoth(self.target).modify(current))
-        print(self.target)
-        print(current)
-        print(RotationBoth(current))
-        print("---compute---")
-        print(f"{error=} {self.integral=} {derivative=} {self.prev_error=}")
+        #print(RotationBoth(self.target))
+        #print(RotationBoth(self.target).modify(current))
+        #print(self.target)
+        #print(current)
+        #print(RotationBoth(current))
+        #print("---compute---")
+        #print(f"{error=} {self.integral=} {derivative=} {self.prev_error=} {velocity=}")
         self.prev_error = error
-        result = PID_KP * error + PID_KI * self.integral + PID_KD * derivative #* np.sign(velocity)
+        result = PID_KP * error + PID_KI * self.integral + np.clip(-PID_KD * derivative, -PID_KD_MAX_MOD, PID_KD_MAX_MOD) #- 1000 * velocity * dt #* np.sign(velocity)
         result *= PID_K
-        print(f"{result=}")
+        #print(f"{result=}")
         # Clip
-        result[0] = min(PID_MAX_POWER, max(-PID_MAX_POWER, -result[0] * PID_FIRST_WEIGHT + result[1])) * -np.sign(np.cos(current[0]))
+        #print(-result[0] * PID_FIRST_WEIGHT, result[1])
+        result[0] = min(MAX_POWER, max(-MAX_POWER, -result[0] * PID_FIRST_WEIGHT + result[1])) * -1 #* -np.sign(np.cos(current[0]))
         result[1] = 0
-        print(f"{result=}")
+        #print(f"{result=}")
+        #return np.sqrt(np.abs(result)) * np.sign(result)
         return result
 
     def __call__(self, qs: np.ndarray, vs: np.ndarray, torque0: np.ndarray, dt: float):
@@ -154,7 +177,7 @@ def sim_loop(viz, model, pid: PID, start_position: np.ndarray, start_velocity: n
         # Display positions and draw velocities
         q = qs[-1]
         v = vs[-1]
-        torque0 = pid(qs, vs, torque0, dt)
+        #torque0 = pid(qs, vs, torque0, dt)
         xdot = lambda qc, vc, torquec: (vc, pin.aba(model, viz.data, qc, vc, torquec))
         if INTEGRATION_USE_RUNGE_KUTTA:
             # Runge-Kutta 4 integration
@@ -168,14 +191,15 @@ def sim_loop(viz, model, pid: PID, start_position: np.ndarray, start_velocity: n
             qdelta, vdelta = xdot(q, v, torque0)
             qdelta *= dt
             vdelta *= dt
-        print(f"{q=} {v=}")
-        print(f"{torque0=}")
-        print(f"{qdelta=} {vdelta=}")
+        #print(f"{q=} {v=}")
+        #print(f"{torque0=}")
+        #print(f"{qdelta=} {vdelta=}")
         qnext = q + qdelta
         vnext = v + vdelta
+        pin.computeAllTerms(model, viz.data, qnext, vnext)
+        torque0 = pid(qs, vs, torque0, dt)
         qs.append(qnext)
         vs.append(vnext)
-        pin.computeAllTerms(model, viz.data, q, v)
         viz.display(qnext)
         time.sleep(1 / SIMULATION_FRAMERATE)
     return qs, vs
