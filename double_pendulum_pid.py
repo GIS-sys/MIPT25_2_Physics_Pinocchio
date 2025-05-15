@@ -27,9 +27,9 @@ LENGTH1 = 0.1  # Length of pendulum's first hand
 LENGTH2 = 0.2  # Length of pendulum's second hand
 DTIME = 0.005  # Simulation delta time step
 PID_MAX_POWER = 2  # Max power of motor to control the pendulum
-PID_KP = 0.01
-PID_KI = 0.1
-PID_KD = 1.0
+PID_KP = 5.0
+PID_KI = 0.01
+PID_KD = 0.5
 PID_K = 1
 SIMULATION_FRAMERATE = 60
 INTEGRATION_USE_RUNGE_KUTTA = True  # Whether to use Runge-Kutta method for integration, or just simple dt * a
@@ -62,20 +62,42 @@ class PID:
         self.prev_error = 0.0
         self.integral = 0.0
 
-    def compute(self, current: np.ndarray, dt: float):
+        self.is_pumping = False
+
+    def compute(self, current: np.ndarray, velocity: np.ndarray, dt: float):
+        # Pump energy into system if needed
+        Ek1 = velocity[0]**2 * LENGTH1**2 / 2
+        Ek2 = velocity[1]**2 * LENGTH2**2 / 2
+        Ep1 = LENGTH1 * math.cos(current[0]) * 9.81
+        Ep2 = (LENGTH1 * math.cos(current[0]) + LENGTH2 * math.cos(current[0] + current[1])) * 9.81
+        Ek = Ek1 + Ek2
+        Ep = Ep1 + Ep2
+        if Ek < 0.5 and Ep < 2:
+            self.is_pumping = True
+        if Ek + Ep >= 5:
+            self.is_pumping = False
+        if self.is_pumping:
+            print("PUMP" * 10)
+            return np.array([
+                np.sign(velocity[0] * np.sin(current[0]) + velocity[1] * np.sin(current[1])) * 0.5,
+                0
+            ])
+
+        # Basic PID
         error = self.target - current
         self.integral += error * dt
         derivative = (error - self.prev_error) / dt
         self.prev_error = error
-        result = self.Kp * error + self.Ki * self.integral + self.Kd * derivative
+        result = self.Kp * error + self.Ki * self.integral + self.Kd * derivative - 0.2 * velocity
         result *= self.k
+        print(error, self.integral, derivative)
         # Clip
         result[0] = min(self.max_power, max(-self.max_power, result[0]))
         result[1] = 0
         return result
 
     def __call__(self, qs: np.ndarray, vs: np.ndarray, torque0: np.ndarray, dt: float):
-        return self.compute(qs[-1], dt) # TODO
+        return self.compute(qs[-1], vs[-1], dt)
 
 
 def sim_loop(viz, model, pid: PID, start_position: np.ndarray, start_velocity: np.ndarray, dt: float, nsteps: int):
