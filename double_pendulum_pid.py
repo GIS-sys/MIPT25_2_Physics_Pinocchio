@@ -20,18 +20,13 @@ print(list(frame.name for frame in model.frames)) # Print all the names of all t
 
 
 # Constants
-START_POSITION = np.array([np.pi / 2, np.pi]) # rotation of 1 from OY clockwise, rotation of 2 in respect to 1 clockwise
-START_POSITION = np.array([0, 0])
+START_POSITION = np.array([np.pi / 2, np.pi / 2]) # rotation of 1 from OY clockwise, rotation of 2 in respect to 1 clockwise
+#START_POSITION = np.array([0, 0])
 START_VELOCITY = np.array([5.0, 3.0])
 GRAVITY = 0.1  # Strength of the gravity
 LENGTH1 = 0.1  # Length of pendulum's first hand
 LENGTH2 = 0.2  # Length of pendulum's second hand
-DTIME = 0.0001  # Simulation delta time step
-PID_MAX_POWER = 5  # Max power of motor to control the pendulum
-PID_KP = 0.5
-PID_KI = 0.1
-PID_KD = 1.2
-PID_K = 1
+DTIME = 0.001  # Simulation delta time step
 SIMULATION_FRAMERATE = 60
 INTEGRATION_USE_RUNGE_KUTTA = True  # Whether to use Runge-Kutta method for integration, or just simple dt * a
 TARGET_MOTORS = [0.0, 0.0]  # Target position
@@ -61,19 +56,44 @@ class RotationPos:
         return np.array([np.linalg.norm(self.pos1 - oth.pos1)**0.5, np.linalg.norm(self.pos2 - oth.pos2)**0.5])
 
 
+class RotationBoth:
+    def __init__(self, rotations: tuple[int, int]):
+        self.a, self.b = rotations
+        self.rot1 = self.a
+        self.rot2 = self.a + self.b
+
+    def modify(self, current: tuple[int, int]):
+        self.rot2 -= min(0.2, max(0.2, current[0] * 2))
+        return self
+
+    def __sub__(self, oth):
+        return np.array([self.rot1 - oth.rot1, self.rot2 - oth.rot2])
+
+    def __repr__(self):
+        return f"({self.rot1}, {self.rot2})"
+
+
+PID_MAX_POWER = 35
+#PID_KP = np.array([5.0, 1.0])
+#PID_KI = np.array([0.1, 5])
+#PID_KD = np.array([0.2, 12.0])
+#PID_VELOCITY_STEP = DTIME / 10
+#PID_K = 10
+#PID_FIRST_WEIGHT = 0.2
+PID_KP = np.array([100.0, 500.0])
+PID_KI = np.array([10.01, 0.01])
+PID_KD = np.array([1.01, 5.1])
+PID_VELOCITY_STEP = 0
+PID_K = 1
+PID_FIRST_WEIGHT = 0.2
+
 class PID:
-    def __init__(self, k: float, Kp: float, Ki: float, Kd: float, target: np.ndarray, max_power: float):
-        # Save configs
-        self.k = k
-        self.Kp = Kp
-        self.Ki = Ki
-        self.Kd = Kd
+    def __init__(self, target: np.ndarray):
         self.target = target
-        self.max_power = max_power
         # Internal parameters
         self.prev_error = 0.0
         self.integral = 0.0
-
+        # State
         self.is_pumping = False
 
     def compute(self, current: np.ndarray, velocity: np.ndarray, dt: float):
@@ -84,7 +104,7 @@ class PID:
         Ep2 = (LENGTH1 * math.cos(current[0]) + LENGTH2 * math.cos(current[0] + current[1])) * 9.81
         Ek = Ek1 + Ek2
         Ep = Ep1 + Ep2
-        if Ek < 0.5 and Ep < 2:
+        if Ek < 0.5 and Ep < 0:
             self.is_pumping = True
         if Ek + Ep >= 5:
             self.is_pumping = False
@@ -96,18 +116,23 @@ class PID:
             ])
 
         # Basic PID
-        error = RotationPos(self.target) - RotationPos(current)
+        current = current + velocity * PID_VELOCITY_STEP
+        error = RotationBoth(self.target).modify(current) - RotationBoth(current)
         self.integral += error * dt
         derivative = (error - self.prev_error) / dt
+        print(RotationBoth(self.target))
+        print(RotationBoth(self.target).modify(current))
+        print(RotationBoth(current))
         print("---compute---")
-        print(f"{error=} {self.integral=} {derivative=}")
+        print(f"{error=} {self.integral=} {derivative=} {self.prev_error=}")
         self.prev_error = error
-        result = self.Kp * error + self.Ki * self.integral + self.Kd * derivative - 0.2 * velocity
-        result *= self.k
+        result = PID_KP * error + PID_KI * self.integral + PID_KD * derivative #* np.sign(velocity)
+        result *= PID_K
         print(f"{result=}")
         # Clip
-        result[0] = min(self.max_power, max(-self.max_power, result[0] + result[1]))
+        result[0] = min(PID_MAX_POWER, max(-PID_MAX_POWER, -result[0] * PID_FIRST_WEIGHT + result[1])) * -np.sign(np.cos(current[0]))
         result[1] = 0
+        print(f"{result=}")
         return result
 
     def __call__(self, qs: np.ndarray, vs: np.ndarray, torque0: np.ndarray, dt: float):
@@ -153,7 +178,7 @@ def sim_loop(viz, model, pid: PID, start_position: np.ndarray, start_velocity: n
     return qs, vs
 
 
-pid = PID(k=PID_K, Kp=PID_KP, Ki=PID_KI, Kd=PID_KD, max_power=PID_MAX_POWER, target=TARGET_MOTORS)
+pid = PID(target=TARGET_MOTORS)
 
 
 # Run the simulation online
