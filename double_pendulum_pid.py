@@ -21,15 +21,16 @@ print(list(frame.name for frame in model.frames)) # Print all the names of all t
 
 # Constants
 START_POSITION = np.array([np.pi / 2, np.pi]) # rotation of 1 from OY clockwise, rotation of 2 in respect to 1 clockwise
+START_POSITION = np.array([0, 0])
 START_VELOCITY = np.array([5.0, 3.0])
 GRAVITY = 0.1  # Strength of the gravity
 LENGTH1 = 0.1  # Length of pendulum's first hand
 LENGTH2 = 0.2  # Length of pendulum's second hand
-DTIME = 0.005  # Simulation delta time step
-PID_MAX_POWER = 2  # Max power of motor to control the pendulum
-PID_KP = 5.0
-PID_KI = 0.01
-PID_KD = 0.5
+DTIME = 0.0001  # Simulation delta time step
+PID_MAX_POWER = 5  # Max power of motor to control the pendulum
+PID_KP = 0.5
+PID_KI = 0.1
+PID_KD = 1.2
 PID_K = 1
 SIMULATION_FRAMERATE = 60
 INTEGRATION_USE_RUNGE_KUTTA = True  # Whether to use Runge-Kutta method for integration, or just simple dt * a
@@ -47,6 +48,17 @@ viz.loadViewerModel()
 
 viz.display(START_POSITION)
 time.sleep(1)
+
+
+class RotationPos:
+    def __init__(self, rotations: tuple[int, int]):
+        self.a, self.b = rotations
+        self.pos1 = np.array([math.sin(self.a) * LENGTH1, -math.cos(self.a) * LENGTH1])
+        self.dpos2 = np.array([-math.sin(self.a + self.b) * LENGTH2, -math.cos(self.a + self.b) * LENGTH2])
+        self.pos2 = self.pos1 + self.dpos2
+
+    def __sub__(self, oth):
+        return np.array([np.linalg.norm(self.pos1 - oth.pos1)**0.5, np.linalg.norm(self.pos2 - oth.pos2)**0.5])
 
 
 class PID:
@@ -84,15 +96,17 @@ class PID:
             ])
 
         # Basic PID
-        error = self.target - current
+        error = RotationPos(self.target) - RotationPos(current)
         self.integral += error * dt
         derivative = (error - self.prev_error) / dt
+        print("---compute---")
+        print(f"{error=} {self.integral=} {derivative=}")
         self.prev_error = error
-        result = self.Kp * error + self.Ki * self.integral + self.Kd * derivative - 0.2 * velocity
+        result = self.Kp * error + self.Ki * self.integral - self.Kd * derivative - 0.2 * velocity
         result *= self.k
-        print(error, self.integral, derivative)
+        print(f"{result=}")
         # Clip
-        result[0] = min(self.max_power, max(-self.max_power, result[0]))
+        result[0] = min(self.max_power, max(-self.max_power, result[0] + result[1]))
         result[1] = 0
         return result
 
@@ -113,7 +127,6 @@ def sim_loop(viz, model, pid: PID, start_position: np.ndarray, start_velocity: n
         q = qs[-1]
         v = vs[-1]
         torque0 = pid(qs, vs, torque0, dt)
-        print(torque0, pid.max_power)
         xdot = lambda qc, vc, torquec: (vc, pin.aba(model, viz.data, qc, vc, torquec))
         if INTEGRATION_USE_RUNGE_KUTTA:
             # Runge-Kutta 4 integration
@@ -127,6 +140,9 @@ def sim_loop(viz, model, pid: PID, start_position: np.ndarray, start_velocity: n
             qdelta, vdelta = xdot(q, v, torque0)
             qdelta *= dt
             vdelta *= dt
+        print(f"{q=} {v=}")
+        print(f"{torque0=}")
+        print(f"{qdelta=} {vdelta=}")
         qnext = q + qdelta
         vnext = v + vdelta
         qs.append(qnext)
