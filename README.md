@@ -1,23 +1,45 @@
 # Results
 
-1) Example of a ragdoll dog (don't forget to download models as described in Installation section):
-![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase_leap.mp4)
+1) Double pendulum (simulation via PID)
 
-2) Example of a robot constant movement with constrained legs and an arm:
-![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase_squats.mp4)
+`double_pendulum_pid.py`
 
-3) Example of a robot being pulled by a constant force to the left, with a single constrained leg:
-![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase_pull.mp4)
+![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase_double_pendulum_pid.mp4)
+
+2) Double pendulum (optimisation task via casadi)
+
+`double_pendulum_casadi.py`
+
+![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase_double_pendulum_casadi.mp4)
+
+3) Ragdoll dog (don't forget to download models as described in Installation section)
+
+`ragdoll_dog.py`
+
+![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase_ragdoll_dog.mp4)
+
+4) Humanoid's constant movement with constrained legs and an arm
+
+`squats_humanoid_constraints.py`
+
+![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase_squats_humanoid_constraints.mp4)
+
+
 
 # Installation
+
+## 0. Install miniconda
+
+https://www.anaconda.com/docs/getting-started/miniconda/install
 
 ## 1. Install dependencies
 
 ```bash
-conda env create --name envname --file=environments.yml
+conda env create --name pinocchioenv --file=environments.yml
+conda activate pinocchioenv
 ```
 
-## 2. Download models
+## 2* Download models (only required for task 3)
 ```bash
 cd /tmp
 git clone https://github.com/Gepetto/example-robot-data/
@@ -25,9 +47,18 @@ cd THIS_REPO_FOLDER
 cp -r /tmp/example-robot-data/robots ./models/example-robot-data/
 ```
 
+
+
 # How to run
 
-python meshcat_viewer.py
+- Pick one of the scripts mentioned in "Results" section
+
+- Run
+```python
+python <script_name>.py
+```
+
+
 
 # Useful links
 
@@ -39,7 +70,11 @@ Viewer example: https://github.com/stack-of-tasks/pinocchio/blob/master/examples
 
 Models: https://github.com/stack-of-tasks/pinocchio/blob/master/models/
 
-Tutorial: https://github.com/rocketman123456/pinocchio_tutorial
+Tutorial: https://github.com/rocketman123456/pinocchio_tutorial/
+
+Pinocchio + casadi example: https://github.com/alessandroassirelli98/pinocchio-casadi-examples/
+
+
 
 # Useful commands
 
@@ -49,3 +84,4 @@ Tutorial: https://github.com/rocketman123456/pinocchio_tutorial
 conda env export > environment.yml
 conda list --export > requirements.txt
 ```
+
