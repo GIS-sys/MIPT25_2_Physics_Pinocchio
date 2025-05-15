@@ -34,7 +34,7 @@ PID_K = 1
 SIMULATION_FRAMERATE = 60
 INTEGRATION_USE_RUNGE_KUTTA = True  # Whether to use Runge-Kutta method for integration, or just simple dt * a
 TARGET_MOTORS = [0.0, 0.0]  # Target position
-NSTEPS = 4000
+NSTEPS = 1000
 OUT_VIDEO_NAME = get_out_video_name(__file__)
 OUT_PLOT_NAME = get_out_plot_name(__file__)
 
