@@ -21,8 +21,9 @@ print(list(frame.name for frame in model.frames)) # Print all the names of all t
 
 # Constants
 START_POSITION = np.array([np.pi / 2, np.pi / 2]) # rotation of 1 from OY clockwise, rotation of 2 in respect to 1 clockwise
-#START_POSITION = np.array([0, 0])
+START_POSITION = np.array([0, 0])
 START_VELOCITY = np.array([5.0, 3.0])
+START_VELOCITY = np.array([0, 0])
 GRAVITY = 0.1  # Strength of the gravity
 LENGTH1 = 0.1  # Length of pendulum's first hand
 LENGTH2 = 0.2  # Length of pendulum's second hand
@@ -63,7 +64,7 @@ class RotationBoth:
         self.rot2 = self.a + self.b
 
     def modify(self, current: tuple[int, int]):
-        self.rot2 -= min(0.2, max(0.2, current[0] * 2))
+        self.rot2 -= min(0.3, max(-0.3, current[0] * 2))
         return self
 
     def __sub__(self, oth):
@@ -73,19 +74,19 @@ class RotationBoth:
         return f"({self.rot1}, {self.rot2})"
 
 
-PID_MAX_POWER = 35
+PID_MAX_POWER = 15
 #PID_KP = np.array([5.0, 1.0])
 #PID_KI = np.array([0.1, 5])
 #PID_KD = np.array([0.2, 12.0])
 #PID_VELOCITY_STEP = DTIME / 10
 #PID_K = 10
 #PID_FIRST_WEIGHT = 0.2
-PID_KP = np.array([100.0, 500.0])
-PID_KI = np.array([10.01, 0.01])
-PID_KD = np.array([1.01, 5.1])
+PID_KP = np.array([100.0, 100.0])
+PID_KI = np.array([0.01, 0.01])
+PID_KD = np.array([1.01, 2.1])
 PID_VELOCITY_STEP = 0
 PID_K = 1
-PID_FIRST_WEIGHT = 0.2
+PID_FIRST_WEIGHT = 0.1
 
 class PID:
     def __init__(self, target: np.ndarray):
@@ -122,6 +123,8 @@ class PID:
         derivative = (error - self.prev_error) / dt
         print(RotationBoth(self.target))
         print(RotationBoth(self.target).modify(current))
+        print(self.target)
+        print(current)
         print(RotationBoth(current))
         print("---compute---")
         print(f"{error=} {self.integral=} {derivative=} {self.prev_error=}")
