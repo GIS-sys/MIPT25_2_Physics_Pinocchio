@@ -33,7 +33,6 @@ time.sleep(1)
 #viz.setCameraTarget([0, 0, 0])
 #viz.setCameraZoom(5)
 #constraint_models[0].joint2_placement = pin.SE3(pin.rpy.rpyToMatrix(np.array([0.0, 0.0, 0.8])), np.array([0.2, 0.1, 0.0]))
-#print(list(frame.name for frame in robot.model.frames)) # Print all the names of all the points
 #fr = robot.model.getFrameId("base_link")
 #fr = robot.model.getFrameId("universe")
 #robot.model.frames[fr].placement = pin.SE3(pin.rpy.rpyToMatrix(np.array([0.0, 0.0, 0.8])), np.array([20.2, 0.1, 0.0]))
@@ -47,7 +46,7 @@ time.sleep(1)
 # We define method calc(), which will take state (x, u) and calculate both next state, as well as loss - which we will minimize
 class CasadiActionModelDoublePendulum:
     dt = 0.02
-    length = .3  # pendulum elongated dimension
+    length = .3
     def __init__(self,model):
         self.cmodel = cmodel = cpin.Model(model)
         self.cdata = cdata = cmodel.createData()
@@ -139,11 +138,12 @@ for t in range(RUNNING_MODELS_AMOUNT):
     xnext,rcost = runningModels[t].calc(xs[t], us[t])
     opti.subject_to(xs[t + 1] == xnext )
     totalcost += rcost
-    opti.subject_to(opti.bounded(-.005, us[t][0], .005)) # control is limited
+    opti.subject_to(opti.bounded(-.00005, us[t][0], .00005)) # control is limited
+    opti.subject_to(opti.bounded(-.00005, us[t][1], .00005)) # control is limited
     
 # Additional terminal constraint
 opti.subject_to(xs[-1][model.nq:] == 0)  # 0 terminal value
-opti.subject_to(terminalModel.tip(xs[RUNNING_MODELS_AMOUNT])==[0,terminalModel.length]) # tip of pendulum at max altitude
+opti.subject_to(terminalModel.tip(xs[RUNNING_MODELS_AMOUNT])==[0, terminalModel.length]) # tip of pendulum at max altitude
 
 ### SOLVE
 opti.minimize(totalcost)
@@ -160,6 +160,16 @@ except:
     us_sol = np.array([ opti.value(u) for u in us ])
     #xs_sol = np.array([ opti.debug.value(x) for x in xs ])
     #us_sol = np.array([ opti.debug.value(u) for u in us ])
+
+print(xs_sol[0])
+print(us_sol[0])
+print(xs_sol[-1])
+print(us_sol[-1])
+#[-3.13884811  2.36685492 -0.49989182  0.10006967]
+#[ 1.06416938e-03 -3.72472978e+01]
+#[-3.13884811  2.36685492 -0.49989182  0.10006967]
+#[ 1.06416938e-03 -3.72472978e+01]
+
 
 ### PLOT AND VIZ
 fig, (ax0, ax1, ax2) = plt.subplots(nrows=3) #, constrained_layout=True)
