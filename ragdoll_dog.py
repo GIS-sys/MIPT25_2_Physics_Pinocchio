@@ -1,42 +1,11 @@
-# Imports
 import sys
 from pathlib import Path
 import numpy as np
 import pinocchio as pin
 from pinocchio.visualize import MeshcatVisualizer
-
-
-# Redefine method in capturing video to increase video capturing speed (add capture_only_step kwarg)
-import time
 from tqdm import tqdm
-def play(self, q_trajectory, dt=None, callback=None, capture=False, capture_only_step=1, **kwargs):
-    """
-    Play a trajectory with given time step. Optionally capture RGB images and
-    returns them.
-    """
-    nsteps = len(q_trajectory)
-    if not capture:
-        capture = self.has_video_writer()
 
-    imgs = []
-    for i in tqdm(range(nsteps)):
-        t0 = time.time()
-        self.display(q_trajectory[i])
-        if callback is not None:
-            callback(i, **kwargs)
-        if capture and i % capture_only_step == 0:
-            img_arr = self.captureImage()
-            if not self.has_video_writer():
-                imgs.append(img_arr)
-            else:
-                self._video_writer.append_data(img_arr)
-        t1 = time.time()
-        elapsed_time = t1 - t0
-        if dt is not None and elapsed_time < dt:
-            self.sleep(dt - elapsed_time)
-    if capture and not self.has_video_writer():
-        return imgs
-
+from utils import play, record, get_out_video_name
 MeshcatVisualizer.play = play
 
 
@@ -63,8 +32,7 @@ START_POSITION = POSITION_READY
 START_VELOCITY = VELOCITY_RANDOM
 DTIME = 0.0002
 NSTEPS = 4000
-
-OUT_VIDEO_NAME = "leap.mp4"
+OUT_VIDEO_NAME = get_out_video_name(__file__)
 
 
 # Create a coordinate frame
@@ -104,22 +72,4 @@ qs, vs = sim_loop(viz, model, frame_id, START_POSITION, START_VELOCITY, DTIME, N
 
 
 # Record a video based on already simulated data
-cos = input("Want to record a video? Enter to skip, number to create video with capture_only_step=<input>: ")
-if cos:
-    try:
-        cos = int(cos)
-    except:
-        print("You should input an integer! To avoid error, assuming integer 32")
-        cos = 32
-
-    # Create a frame for video
-    frame_id_video = model.getFrameId("FL_FOOT")
-
-    # Callback for writing both into output AND video
-    def my_callback(i, *args):
-        viz.drawFrameVelocities(frame_id)
-        viz.drawFrameVelocities(frame_id_video)
-
-    # Write video
-    with viz.create_video_ctx(f"out/{OUT_VIDEO_NAME}"):
-        viz.play(qs, DTIME, callback=my_callback, capture_only_step=cos)
+record(viz, qs, OUT_VIDEO_NAME, DTIME, model.getFrameId("FL_FOOT"))

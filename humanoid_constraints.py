@@ -7,37 +7,7 @@ from scipy.integrate import odeint
 from tqdm import tqdm
 
 
-# Redefine method in capturing video to increase video capturing speed (add capture_only_step kwarg)
-import time
-from tqdm import tqdm
-def play(self, q_trajectory, dt=None, callback=None, capture=False, capture_only_step=1, **kwargs):
-    """
-    Play a trajectory with given time step. Optionally capture RGB images and
-    returns them.
-    """
-    nsteps = len(q_trajectory)
-    if not capture:
-        capture = self.has_video_writer()
-
-    imgs = []
-    for i in tqdm(range(nsteps)):
-        t0 = time.time()
-        self.display(q_trajectory[i])
-        if callback is not None:
-            callback(i, **kwargs)
-        if capture and i % capture_only_step == 0:
-            img_arr = self.captureImage()
-            if not self.has_video_writer():
-                imgs.append(img_arr)
-            else:
-                self._video_writer.append_data(img_arr)
-        t1 = time.time()
-        elapsed_time = t1 - t0
-        if dt is not None and elapsed_time < dt:
-            self.sleep(dt - elapsed_time)
-    if capture and not self.has_video_writer():
-        return imgs
-
+from utils import play, record, get_out_video_name
 MeshcatVisualizer.play = play
 
 
@@ -58,8 +28,9 @@ FOOT_TAG_RIGHT = "right_sole_link"
 HAND_TAG_LEFT = "gripper_left_fingertip_3_link"
 HAND_TAG_RIGHT = "gripper_right_fingertip_3_link"
 ROOT_TAG = "root_joint"
-OUT_VIDEO_NAME = "squats.mp4"
 DELAY_BEFORE_LOADED = 1 # seconds to wait before broser is loaded
+OUT_VIDEO_NAME = get_out_video_name(__file__)
+
 
 
 
@@ -85,8 +56,8 @@ TAGS_TO_KEEP_STILL = [FOOT_TAG_LEFT, FOOT_TAG_RIGHT, HAND_TAG_RIGHT]
 BODY_DISPLACEMENT = lambda k: 0.1 * np.array(
     [
         0.0,
-        10 * k / 2000,
-        -10 * k / 2000 + 9.81 * (k / 2000)**2 * 10,
+        10 * k / 3000,
+        -10 * k / 3000 + 9.81 * (k / 3000)**2 * 10,
     ]
 )
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -192,25 +163,5 @@ def sim_loop(viz, model, start_position: np.ndarray, start_velocity: np.ndarray,
 
 qs, vs = sim_loop(viz, model, START_POSITION, START_VELOCITY, DTIME, DELAY_BEFORE_LOADED, NSTEPS)
 
-
 # Record a video based on already simulated data
-cos = input("Want to record a video? Enter to skip, number to create video with capture_only_step=<input>: ")
-if cos:
-    try:
-        cos = int(cos)
-    except:
-        print("You should input an integer! To avoid error, assuming integer 32")
-        cos = 32
-
-    # Create a frame for video
-    frame_id_video = model.getFrameId(FOOT_TAG_LEFT)
-
-    # Callback for writing both into output AND video
-    def my_callback(i, *args):
-        for frame_id in FRAMES_TO_KEEP_STILL:
-            viz.drawFrameVelocities(frame_id)
-        viz.drawFrameVelocities(frame_id_video)
-
-    # Write video
-    with viz.create_video_ctx(f"out/{OUT_VIDEO_NAME}"):
-        viz.play(qs, DTIME, callback=my_callback, capture_only_step=cos)
+record(viz, qs, OUT_VIDEO_NAME, DTIME, model.getFrameId(FOOT_TAG_LEFT))

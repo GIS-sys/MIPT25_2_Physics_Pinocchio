@@ -20,9 +20,9 @@
 
 4) Humanoid's constant movement with constrained legs and an arm
 
-`squats_humanoid_constraints.py`
+`humanoid_constraints.py`
 
-![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase_squats_humanoid_constraints.mp4)
+![Video](https://github.com/GIS-sys/MIPT25_2_Physics_Pinocchio/raw/refs/heads/main/out/showcase_humanoid_constraints.mp4)
 
 
 
